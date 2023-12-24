@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Desmos Graphing Calculator</title>
+  <script src="https://www.desmos.com/api/v1.8/calculator.js?apiKey=dcb31709b452b1cf9dc26972add0fda6"></script>
+  <style>
+    html,
+    body {
+      --mb-height: 20px;
+
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    #calculator {
+      width: 100%;
+      height: calc(100% - var(--mb-height));
+    }
+
+    #menubar {
+      width: 100%;
+      height: var(--mb-height);
+      background: linear-gradient(180deg,
+          rgb(255, 255, 255) 0%,
+          rgb(220, 220, 220) 100%);
+    }
+
+    .menu-item {
+      position: relative;
+      display: inline-block;
+    }
+
+    .dropdown {
+      background: rgba(0, 0, 0, 0);
+      font-size: 100%;
+      border: none;
+      cursor: pointer;
+    }
+
+    .dropdown:active {
+      background: rgba(200, 200, 200, 2);
+    }
+
+    .dropdown-menu {
+      display: none;
+      position: absolute;
+      background: rgb(240, 240, 240);
+      min-width: 160px;
+      box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+      z-index: 1;
+    }
+
+    .dropdown-menu button {
+      font-family: sans-serif;
+      color: black;
+      background: rgba(0, 0, 0, 0);
+      width: 100%;
+      text-align: left;
+      padding: 8px 8px;
+      border: none;
+      cursor: pointer;
+      display: block;
+    }
+
+    .dropdown-menu button:hover {
+      background: rgba(200, 200, 200, 0.5);
+    }
+
+    .show {
+      display: block;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="menubar">
+    <div class="menu-item">
+      <button class="dropdown" onclick="toggleMenu(this)">File</button>
+      <div id="file-menu" class="dropdown-menu">
+        <button onclick="newGraph()">New</button>
+        <button onclick="openState()">Open</button>
+        <button onclick="saveState()">Save</button>
+        <hr />
+        <button onclick="takeScreenshot()">Export</button>
+      </div>
+    </div>
+    <div class="menu-item">
+      <button class="dropdown" onclick="toggleMenu(this)">Edit</button>
+      <div id="edit-menu" class="dropdown-menu">
+        <button onclick="calculator.undo()">Undo</button>
+        <button onclick="calculator.redo()">Redo</button>
+        <button onclick="copySelected()">Copy</button>
+        <button onclick="pasteSelected()">Paste</button>
+        <button onclick="selectAll()">Select All</button>
+        <button onclick="deleteSelected()">Delete</button>
+      </div>
+    </div>
+    <div class="menu-item">
+      <button class="dropdown" onclick="toggleMenu(this)">View</button>
+      <div id="view-menu" class="dropdown-menu">
+        <button onclick="fitToScreen()">Fit To Screen</button>
+        <button onclick="zoomIn()">Zoom In</button>
+        <button onclick="zoomOut()">Zoom Out</button>
+        <hr />
+        <button onclick="toggleFullscreen()">Toggle Fullscreen</button>
+      </div>
+    </div>
+    <div class="menu-item">
+      <button class="dropdown" onclick="toggleMenu(this)">Help</button>
+      <div id="help-menu" class="dropdown-menu">
+        <button onclick="learnMore()">Learn More</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="calculator"></div>
+
+  <script>
+    let graphName = "Untitled";
+    let appNameSuffix = " - Desmos Graphing Calculator";
+
+    document.title = graphName + appNameSuffix;
+
+    // Initialize graphing calculator
+    const elt = document.getElementById("calculator");
+    const options = { border: false };
+    const calculator = Desmos.GraphingCalculator(elt, options);
+
+    // Open dropdown menu
+    function toggleMenu(button) {
+      const menus = document.querySelectorAll(`[id $= -menu]`);
+      const selectedMenuId = `${button.innerHTML.toLowerCase()}-menu`;
+
+      menus.forEach(menu => {
+        if (menu.id == selectedMenuId) {
+          menu.classList.toggle("show");
+        }
+        else {
+          menu.classList.remove("show");
+        }
+      });
+    }
+
+    // Close dropdowns when anywhere else on window is clicked
+    window.onclick = event => {
+      if (!event.target.matches(".dropdown")) {
+        const dropdowns = document.getElementsByClassName("dropdown-menu");
+
+        let i;
+        for (i = 0; i < dropdowns.length; i++) {
+          const openDropdown = dropdowns[i];
+
+          if (openDropdown.classList.contains("show")) {
+            openDropdown.classList.remove("show");
+          }
+        }
+      }
+    };
+
+    // Create new graph
+    function newGraph() {
+      const newName = prompt("Enter your graph's new name:", "Untitled");
+      graphName = newName;
+      document.title = graphName + appNameSuffix;
+      calculator.setBlank();
+    }
+
+    // Open .des state file
+    function openState() {
+      const input = document.createElement("input");
+      input.type = "file";
+
+      input.onchange = e => {
+        const file = e.target.files[0];
+
+        if (file) {
+          const reader = new FileReader();
+
+          reader.onload = f => {
+            const state = JSON.parse(f.target.result);
+            calculator.setState(state);
+          };
+
+          reader.onerror = f => {
+            alert("error reading file");
+          };
+
+          reader.readAsText(file, "UTF-8");
+        }
+      };
+
+      input.click();
+    }
+
+    // Save to json/des file
+    function saveState() {
+      const state = calculator.getState();
+      const json = JSON.stringify(state);
+
+      const fileName = `${graphName}.des`;
+      const type = "application/json";
+
+      const file = new Blob([json], { type: type });
+
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(file);
+      a.download = fileName;
+
+      a.click();
+    }
+
+    // Takes a screenshot of viewport, upscaled to atleast 2048px
+    function takeScreenshot() {
+      const isHighRes = confirm("Make image high resolution (2x)?");
+
+      const a = document.createElement("a");
+      a.download = `${graphName}.png`;
+
+      const width = calculator.graphpaperBounds.pixelCoordinates.width;
+      const height = calculator.graphpaperBounds.pixelCoordinates.height;
+      const aspectRatio = height / width;
+      const isLandscape = aspectRatio < 1;
+
+      const targetSize = Math.max(2048, width, height);
+
+      let targetPixelRatio = 1;
+
+      if (isLandscape) {
+        const widthRatio = targetSize / width;
+        targetPixelRatio *= widthRatio;
+      }
+      else {
+        const heightRatio = targetSize / height;
+        targetPixelRatio *= heightRatio;
+      }
+
+      if (isHighRes) {
+        targetPixelRatio *= 2;
+      }
+
+      a.href = calculator.screenshot({
+        width: width,
+        height: height,
+        targetPixelRatio: targetPixelRatio
+      });
+
+      a.click();
+    }
+
+    let copiedExpressions = [];
+    let selectedExpressionIds = [];
+    let isAnyExpressionSelectedBefore = false;
+
+    // Remember last selected expression ID
+    calculator.observe(
+      'selectedExpressionId',
+      () => {
+        if (calculator.isAnyExpressionSelected) {
+          selectedExpressionIds = [calculator.selectedExpressionId];
+          isAnyExpressionSelectedBefore = true;
+        }
+      }
+    )
+
+    // Copy selected expression/s
+    function copySelected() {
+      copiedExpressions = [];
+
+      const expressions = calculator.getExpressions();
+
+      if (isAnyExpressionSelectedBefore) {
+        for (const exp of expressions) {
+          if (selectedExpressionIds.includes(exp.id)) {
+            delete exp.id;
+            copiedExpressions.push(exp);
+          }
+        }
+      }
+    }
+
+    // Paste copied expression/s
+    function pasteSelected() {
+      if (isAnyExpressionSelectedBefore) {
+        calculator.setExpressions(copiedExpressions);
+      }
+    }
+
+    // Selects all expression IDs internally
+    // (Desmos does not allow multiple selections)
+    function selectAll() {
+      isAnyExpressionSelectedBefore = true;
+
+      const expressions = calculator.getExpressions();
+      
+      selectedExpressionIds = [];
+      
+      for (const exp of expressions) {
+        selectedExpressionIds.push(exp.id);
+      }
+    }
+
+    // Delete selected expression/s
+    function deleteSelected() {
+      if (isAnyExpressionSelectedBefore) {
+        for (const id of selectedExpressionIds) {
+          calculator.removeExpressions([{ id: id }]);
+        }
+
+        const expressions = calculator.getExpressions();
+
+        if (expressions.length === 0) {
+          calculator.setExpression({});
+        }
+      }
+    }
+
+    function fitToScreen() {
+      alert('No idea how to implement this! :\'))');
+    }
+
+    function zoomIn() {
+      const mathBounds = calculator.graphpaperBounds.mathCoordinates;
+
+      calculator.setMathBounds({
+        left: mathBounds.left / 2,
+        right: mathBounds.right / 2,
+        top: mathBounds.top / 2,
+        bottom: mathBounds.bottom / 2,
+        width: mathBounds.width / 2,
+        height: mathBounds.height / 2
+      });
+    }
+
+    function zoomOut() {
+      const mathBounds = calculator.graphpaperBounds.mathCoordinates;
+
+      calculator.setMathBounds({
+        left: mathBounds.left * 2,
+        right: mathBounds.right * 2,
+        top: mathBounds.top * 2,
+        bottom: mathBounds.bottom * 2,
+        width: mathBounds.width * 2,
+        height: mathBounds.height * 2
+      });
+    }
+
+    function toggleFullscreen() {
+      const doc = document.documentElement;
+      if (!document.fullscreen) {
+        if (doc.requestFullscreen) {
+          doc.requestFullscreen();
+        }
+        else if (doc.webkitRequestFullscreen) { /* Safari */
+          doc.webkitRequestFullscreen();
+        }
+        else if (doc.msRequestFullscreen) { /* IE11 */
+          doc.msRequestFullscreen();
+        }
+      }
+      else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+        else if (document.webkitExitFullscreen) { /* Safari */
+          document.webkitExitFullscreen();
+        }
+        else if (document.msExitFullscreen) { /* IE11 */
+          document.msExitFullscreen();
+        }
+      }
+    }
+
+    function learnMore() {
+      const isLeaving = confirm("Leaving?");
+
+      if (isLeaving) {
+        location.assign('https://github.com/Taujhon/desmos-save-system-demo');
+      }
+    }
+  </script>
+</body>
+
+</html>

@@ -5,7 +5,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Desmos Graphing Calculator</title>
-  <script src="https://www.desmos.com/api/v1.8/calculator.js?apiKey=dcb31709b452b1cf9dc26972add0fda6"></script>
+  <!--script src="https://www.desmos.com/api/v1.8/calculator.js?apiKey=dcb31709b452b1cf9dc26972add0fda6"></script-->
+  <script src="calculator.js"></script>
   <style>
     html,
     body {
@@ -75,6 +76,10 @@
     .show {
       display: block;
     }
+
+    kbd {
+      float: right;
+    }
   </style>
 </head>
 
@@ -83,38 +88,40 @@
     <div class="menu-item">
       <button class="dropdown" onclick="toggleMenu(this)">File</button>
       <div id="file-menu" class="dropdown-menu">
-        <button onclick="newGraph()">New</button>
-        <button onclick="openState()">Open</button>
-        <button onclick="saveState()">Save</button>
+        <button onclick="newGraph()">New <kbd><kbd>(ctrl + g)</kbd></kbd></button>
+        <button onclick="openState()">Open <kbd>(ctrl + o)</kbd></button>
+        <button onclick="saveState()">Save <kbd>(ctrl + s)</kbd></button>
         <hr />
-        <button onclick="takeScreenshot()">Export</button>
+        <button onclick="takeScreenshot()">Export <kbd>(ctrl + e)</kbd></button>
       </div>
     </div>
     <div class="menu-item">
       <button class="dropdown" onclick="toggleMenu(this)">Edit</button>
       <div id="edit-menu" class="dropdown-menu">
-        <button onclick="calculator.undo()">Undo</button>
-        <button onclick="calculator.redo()">Redo</button>
-        <button onclick="copySelected()">Copy</button>
-        <button onclick="pasteSelected()">Paste</button>
-        <button onclick="selectAll()">Select All</button>
-        <button onclick="deleteSelected()">Delete</button>
+        <button onclick="calculator.undo()">Undo <kbd>(ctrl + z)</kbd></button>
+        <button onclick="calculator.redo()">Redo <kbd>(ctrl + y)</kbd></button>
+        <button onclick="copySelected()">Copy <kbd>(ctrl + c)</kbd></button>
+        <button onclick="pasteSelected()">Paste <kbd>(ctrl + v)</kbd></button>
+        <button onclick="dupeSelected()">Duplicate <kbd>(ctrl + d)</kbd></button>
+        <button onclick="dupeAll()">Duplicate All <kbd>(ctrl + a)</kbd></button>
+        <button onclick="deleteSelected()">Delete <kbd>(ctrl + r)</kbd></button>
+        <button onclick="clearExpressions()">Clear <kbd>(ctrl + l)</kbd></button>
       </div>
     </div>
     <div class="menu-item">
       <button class="dropdown" onclick="toggleMenu(this)">View</button>
       <div id="view-menu" class="dropdown-menu">
-        <button onclick="fitToScreen()">Fit To Screen</button>
-        <button onclick="zoomIn()">Zoom In</button>
-        <button onclick="zoomOut()">Zoom Out</button>
+        <button onclick="fitToScreen()">Fit To Screen <kbd>(ctrl + 0)</kbd></button>
+        <button onclick="zoomIn()">Zoom In <kbd>(ctrl + =)</kbd></button>
+        <button onclick="zoomOut()">Zoom Out <kbd>(ctrl + -)</kbd></button>
         <hr />
-        <button onclick="toggleFullscreen()">Toggle Fullscreen</button>
+        <button onclick="toggleFullscreen()">Toggle Fullscreen <kbd>(F11)</kbd></button>
       </div>
     </div>
     <div class="menu-item">
       <button class="dropdown" onclick="toggleMenu(this)">Help</button>
       <div id="help-menu" class="dropdown-menu">
-        <button onclick="learnMore()">Learn More</button>
+        <button onclick="learnMore()">Learn More <kbd>(ctrl + h)</kbd></button>
       </div>
     </div>
   </div>
@@ -122,14 +129,27 @@
   <div id="calculator"></div>
 
   <script>
-    let graphName = "Untitled";
-    let appNameSuffix = " - Desmos Graphing Calculator";
+    let graphName;
+    let appNameSuffix = "Desmos Graphing Calculator";
 
-    document.title = graphName + appNameSuffix;
+    function changeTitle(name) {
+      if (name === '' || name === undefined) {
+        graphName = 'Untitled';
+      }
+      else {
+        graphName = name;
+      }
+
+      document.title = graphName + ' - ' + appNameSuffix;
+    }
+
+    changeTitle();
 
     // Initialize graphing calculator
     const elt = document.getElementById("calculator");
-    const options = { border: false };
+    const options = {
+      border: false
+    };
     const calculator = Desmos.GraphingCalculator(elt, options);
 
     // Open dropdown menu
@@ -166,8 +186,7 @@
     // Create new graph
     function newGraph() {
       const newName = prompt("Enter your graph's new name:", "Untitled");
-      graphName = newName;
-      document.title = graphName + appNameSuffix;
+      changeTitle(newName);
       calculator.setBlank();
     }
 
@@ -185,6 +204,8 @@
           reader.onload = f => {
             const state = JSON.parse(f.target.result);
             calculator.setState(state);
+            const newName = input.files[0].name.replace('.des', '');
+            changeTitle(newName);
           };
 
           reader.onerror = f => {
@@ -219,9 +240,6 @@
     function takeScreenshot() {
       const isHighRes = confirm("Make image high resolution (2x)?");
 
-      const a = document.createElement("a");
-      a.download = `${graphName}.png`;
-
       const width = calculator.graphpaperBounds.pixelCoordinates.width;
       const height = calculator.graphpaperBounds.pixelCoordinates.height;
       const aspectRatio = height / width;
@@ -244,6 +262,8 @@
         targetPixelRatio *= 2;
       }
 
+      const a = document.createElement("a");
+      a.download = `${graphName}.png`;
       a.href = calculator.screenshot({
         width: width,
         height: height,
@@ -291,21 +311,33 @@
       }
     }
 
-    // Selects all expression IDs internally
-    // (Desmos does not allow multiple selections)
+    function dupeSelected() {
+      copySelected();
+      pasteSelected();
+    }
+
     function selectAll() {
       isAnyExpressionSelectedBefore = true;
 
       const expressions = calculator.getExpressions();
-      
+
       selectedExpressionIds = [];
-      
+
       for (const exp of expressions) {
         selectedExpressionIds.push(exp.id);
       }
     }
 
-    // Delete selected expression/s
+    function dupeAll() {
+      selectAll();
+      copySelected();
+      pasteSelected();
+      selectedExpressionIds = [calculator.selectedExpressionId];
+      if (!calculator.isAnyExpressionSelected) {
+        isAnyExpressionSelectedBefore = false;
+      }
+    }
+
     function deleteSelected() {
       if (isAnyExpressionSelectedBefore) {
         for (const id of selectedExpressionIds) {
@@ -320,8 +352,17 @@
       }
     }
 
+    function clearExpressions() {
+      selectAll();
+      deleteSelected();
+      selectedExpressionIds = [calculator.selectedExpressionId];
+      if (!calculator.isAnyExpressionSelected) {
+        isAnyExpressionSelectedBefore = false;
+      }
+    }
+
     function fitToScreen() {
-      alert('No idea how to implement this! :\'))');
+      alert('No idea how to implement this! :\')');
     }
 
     function zoomIn() {
@@ -377,67 +418,95 @@
     }
 
     function learnMore() {
-        open('https://github.com/Taujhon/desmos-save-system-demo', '_blank');
+      const isLeaving = confirm("Leaving?");
+
+      if (isLeaving) {
+        window.open('https://github.com/Taujhon/desmos-save-system-demo', '_blank');
+      }
     }
-    
-    /* Shortcuts :(
+
     document.onkeydown = e => {
-      if (e.ctrlKey && e.altKey && e.key === 'n') {
+
+      if (e.ctrlKey && e.key === 'g') {
+        e.preventDefault();
         newGraph();
       }
 
-      if (e.ctrlKey && e.altKey && e.key === 'o') {
+      if (e.ctrlKey && e.key === 'o') {
+        e.preventDefault();
         openState();
       }
 
-      if (e.ctrlKey && e.altKey && e.key === 's') {
+      if (e.ctrlKey && e.key === 's') {
+        e.preventDefault();
         saveState();
       }
 
-      if (e.ctrlKey && e.altKey && e.key === 'e') {
+      if (e.ctrlKey && e.key === 'e') {
+        e.preventDefault();
         takeScreenshot();
       }
 
-      if (e.ctrlKey && e.altKey && e.key === 'z') {
+      if (e.ctrlKey && e.key === 'z') {
+        e.preventDefault();
         calculator.undo();
       }
 
-      if (e.ctrlKey && e.altKey && e.key === 'y') {
+      if (e.ctrlKey && e.key === 'y') {
+        e.preventDefault();
         calculator.redo();
       }
 
-      if (e.ctrlKey && e.altKey && e.key === 'c') {
+      if (e.ctrlKey && e.key === 'c') {
+        e.preventDefault();
         copySelected();
       }
 
-      if (e.ctrlKey && e.altKey && e.key === 'v') {
+      if (e.ctrlKey && e.key === 'v') {
+        e.preventDefault();
         pasteSelected();
       }
 
-      if (e.ctrlKey && e.altKey && e.key === 'a') {
-        selectAll();
+      if (e.ctrlKey && e.key === 'd') {
+        e.preventDefault();
+        dupeSelected();
       }
 
-      if (e.ctrlKey && e.altKey && e.key === 'd') {
-        deleteSelected();
-      
+      if (e.ctrlKey && e.key === 'a') {
+        e.preventDefault();
+        dupeAll();
+      }
 
-      if (e.ctrlKey && e.altKey && e.key === '0') {
+      if (e.ctrlKey && e.key === 'r') {
+        e.preventDefault();
+        deleteSelected();
+      }
+
+      if (e.ctrlKey && e.key === 'l') {
+        e.preventDefault();
+        clearExpressions();
+      }
+
+      if (e.ctrlKey && e.key === '0') {
+        e.preventDefault();
         fitToScreen();
       }
 
-      if (e.ctrlKey && e.altKey && e.key === '-') {
+      if (e.ctrlKey && e.key === '-') {
+        e.preventDefault();
         zoomOut();
       }
 
-      if (e.ctrlKey && e.altKey && e.key === '=') {
+      if (e.ctrlKey && e.key === '=') {
+        e.preventDefault();
         zoomIn();
       }
-      
-      if (e.ctrlKey && e.altKey && e.key === 'h') {
+
+      if (e.ctrlKey && e.key === 'h') {
+        e.preventDefault();
         learnMore();
       }
-    };*/
+    };
   </script>
 </body>
 
